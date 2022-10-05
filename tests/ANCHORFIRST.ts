@@ -38,11 +38,17 @@ describe("anchorFirst", () => {
     let transaction = new anchor.web3.Transaction();
     let token_airdrop= await con.requestAirdrop(User_Wallet.publicKey, 10000000000);
     await con.confirmTransaction(token_airdrop);
+
+    let token_airdrop1= await con.requestAirdrop(winner_wallet.publicKey, 10000000000);
+    await con.confirmTransaction(token_airdrop1);
+
     let mintA = await createMint(con, User_Wallet, User_Wallet.publicKey, null, 0);
     let myToken_acctA = await getOrCreateAssociatedTokenAccount(con,
       User_Wallet,
       mintA,
       User_Wallet.publicKey);
+
+
 
       await mintTo(con,User_Wallet,mintA,
         myToken_acctA.address, User_Wallet.publicKey, 5);
@@ -134,21 +140,11 @@ const [usertokenpda2, bump2] = await anchor.web3.PublicKey.findProgramAddress(
   programId
 );
 
-const [user_pda_ac, user_bump] = await PublicKey.findProgramAddress(
-  [winner_wallet.publicKey.toBuffer()],
-  programId
-);
-
-if(await con.getAccountInfo(user_pda_ac) == null)
-{
-  console.log("pda does not exist");
-}
 
 if(await con.getAccountInfo(usertokenpda2) == null)
 {
   console.log("token  pda does not exist");
 }
-
 
 
 let wallet_to_deposit_to = await getOrCreateAssociatedTokenAccount(
@@ -157,6 +153,10 @@ let wallet_to_deposit_to = await getOrCreateAssociatedTokenAccount(
   myToken_acctA.mint,
   winner_wallet.publicKey,
   );
+
+
+
+
 
   transaction3.add(await program.methods.sendtokenwinner(bump1,bump2,
     new anchor.BN(amount))
