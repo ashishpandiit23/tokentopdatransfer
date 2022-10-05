@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{token::{TokenAccount, Mint, Token}};
 use anchor_spl::token::Transfer;
+use anchor_spl::{token::{TokenAccount, Mint, Token}, associated_token::AssociatedToken};
 
 declare_id!("AtGABXydX8hgbBeeRE46kLDDnPTuZtTd7Yi7HjwMRNSg");
 
@@ -65,6 +65,38 @@ pub mod anchor_first {
          Ok(())
  
      }
+
+   
+     
+     pub fn sendtokenwinner(ctx: Context<SendTokenWinner>,_bump1:u8,_bump2:u8,_amount:u64) -> Result<()>
+        {
+        msg!("token transfer to winner started from backend...");
+
+       let bump_vector=_bump1.to_le_bytes();
+       let dep=&mut ctx.accounts.deposit_token_account.key();
+       let sender=&ctx.accounts.sender;
+       let inner=vec![sender.key.as_ref(),dep.as_ref(),"state".as_ref(),bump_vector.as_ref()];
+       let outer=vec![inner.as_slice()];
+       let transfer_instruction = Transfer{
+           from: ctx.accounts.tokenpda.to_account_info(),
+           to:   ctx.accounts.wallet_to_deposit_to.to_account_info(),
+           authority: ctx.accounts.statepda.to_account_info()
+       };
+       
+       let cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        transfer_instruction,
+        outer.as_slice(),
+    );
+
+      msg!("trasnfer call start");
+
+       anchor_spl::token::transfer(cpi_ctx, _amount)?;
+
+
+        Ok(())
+    }
+
  
 }
 
@@ -131,9 +163,36 @@ pub struct SendTokenPDA<'info> {
    
 }
 
+#[derive(Accounts)]
+pub struct SendTokenWinner<'info> {
+
+     #[account(mut)]
+     pub tokenpda: Account<'info, TokenAccount>,
+     pub statepda: Account<'info,State>,
+     #[account(mut)]
+     pub wallet_to_deposit_to: Account<'info,TokenAccount>,
+     /// CHECK not read write to this account
+     pub sender : AccountInfo<'info>,
+     pub deposit_token_account: Account<'info, TokenAccount>,
+     #[account(mut)]
+     /// CHECK not read write to this account
+     pub reciever: Signer<'info>, 
+     pub system_program: Program<'info,System>,
+     pub rent: Sysvar<'info, Rent>,
+     pub associated_token_program: Program<'info, AssociatedToken>,
+     pub token_program: Program<'info,Token>,
+}
+
 #[account]
 #[derive(Default)]
 pub struct State {
     bump: u8,
     amount: u64,           
 }
+
+#[account]
+
+pub struct AccountUser {
+    pub owner_id: Pubkey,
+    pub platform_id: Pubkey,
+        }

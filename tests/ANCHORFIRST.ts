@@ -25,7 +25,8 @@ const programId = new anchor.web3.PublicKey("AtGABXydX8hgbBeeRE46kLDDnPTuZtTd7Yi
 const program = new anchor.Program(idl, programId);
 let accountPrivKey=[10,253,54,31,72,166,218,19,232,230,34,160,61,168,131,124,210,200,176,27,106,10,193,194,185,33,2,177,22,104,131,211,115,37,129,62,106,8,148,244,136,49,12,128,247,75,199,128,229,66,147,206,80,68,111,148,147,59,168,48,7,232,195,2].slice(0,32);
 let User_Wallet = anchor.web3.Keypair.fromSeed(Uint8Array.from(accountPrivKey));
-
+let winnerPrivKey=[39,160,120,239,225,24,95,19,92,144,94,226,150,216,128,201,145,143,222,236,8,183,212,19,29,153,5,127,51,187,117,47,213,34,250,84,112,151,98,64,219,21,18,214,100,71,241,80,54,111,100,12,183,247,204,39,35,122,164,131,136,178,202,159].slice(0,32);
+let winner_wallet = anchor.web3.Keypair.fromSeed(Uint8Array.from(winnerPrivKey));
 describe("anchorFirst", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -42,6 +43,7 @@ describe("anchorFirst", () => {
       User_Wallet,
       mintA,
       User_Wallet.publicKey);
+
       await mintTo(con,User_Wallet,mintA,
         myToken_acctA.address, User_Wallet.publicKey, 5);
         let amount=1;
@@ -120,7 +122,60 @@ describe("anchorFirst", () => {
 
  await sendAndConfirmTransaction(con,transaction2,[User_Wallet]);
    
-    
+   let transaction3 = new anchor.web3.Transaction();
+
+ const [user_pda_state2, bump1] = await anchor.web3.PublicKey.findProgramAddress(
+  [User_Wallet.publicKey.toBuffer(),myToken_acctA.address.toBuffer(),Buffer.from("state")],
+  programId
+);
+
+const [usertokenpda2, bump2] = await anchor.web3.PublicKey.findProgramAddress(
+  [User_Wallet.publicKey.toBuffer(),myToken_acctA.address.toBuffer()],
+  programId
+);
+
+const [user_pda_ac, user_bump] = await PublicKey.findProgramAddress(
+  [winner_wallet.publicKey.toBuffer()],
+  programId
+);
+
+if(await con.getAccountInfo(user_pda_ac) == null)
+{
+  console.log("pda does not exist");
+}
+
+if(await con.getAccountInfo(usertokenpda2) == null)
+{
+  console.log("token  pda does not exist");
+}
+
+
+
+let wallet_to_deposit_to = await getOrCreateAssociatedTokenAccount(
+  con,
+  winner_wallet,
+  myToken_acctA.mint,
+  winner_wallet.publicKey,
+  );
+
+  transaction3.add(await program.methods.sendtokenwinner(bump1,bump2,
+    new anchor.BN(amount))
+  .accounts({
+    tokenpda: usertokenpda2,
+    statepda: user_pda_state2,
+    walletToDepositTo: wallet_to_deposit_to.address,
+    sender: User_Wallet.publicKey,
+    depositTokenAccount : myToken_acctA.address,
+    reciever: winner_wallet.publicKey,     
+    systemProgram: anchor.web3.SystemProgram.programId,
+    rent: SYSVAR_RENT_PUBKEY,
+    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    tokenProgram:TOKEN_PROGRAM_ID
+  }).signers([winner_wallet])
+  .instruction())
+
+  await sendAndConfirmTransaction(con,transaction3,[winner_wallet]);
+
   });
 });
 
